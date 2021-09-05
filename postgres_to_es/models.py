@@ -1,6 +1,6 @@
 import dataclasses
 import datetime
-import typing as t
+import typing
 import uuid
 
 
@@ -10,18 +10,16 @@ class Person:
     name: str
 
     @classmethod
-    def from_dict(cls, dict_: dict[str, t.Any]) -> "Person":
+    def from_dict(cls, dict_: dict[str, typing.Any]) -> "Person":
         if dict_:
             return cls(id=dict_["id"], name=dict_["name"])
-        else:
-            return None
+        return None
 
     @classmethod
-    def from_dict_list(cls, iterable: t.Iterable[dict]) -> list["Person"]:
+    def from_dict_list(cls, iterable: typing.Iterable[dict]) -> list["Person"]:
         if iterable:
             return [cls.from_dict(it) for it in iterable]
-        else:
-            return []
+        return []
 
 
 @dataclasses.dataclass
@@ -37,7 +35,7 @@ class Movie:
     updated_at: datetime
 
     @classmethod
-    def from_dict(cls, dict_: dict[str, t.Any]) -> "Movie":
+    def from_dict(cls, dict_: dict[str, typing.Any]) -> "Movie":
         return cls(
             id=dict_["id"],
             title=str(dict_["title"]),

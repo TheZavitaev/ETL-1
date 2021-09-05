@@ -1,35 +1,40 @@
+import os
 import json
 import logging
-import os
+from urllib3.exceptions import HTTPError
 from time import sleep
 from typing import Generator
 
 import backoff
 import psycopg2
 from elasticsearch.exceptions import ElasticsearchException
-from loader import ESLoader
-from models import Movie
 from psycopg2.extensions import connection as _connection
 from psycopg2.extras import RealDictCursor
 from redis import Redis
-from state import RedisStorage
-from urllib3.exceptions import HTTPError
+from elasticsearch import Elasticsearch
+
 from utils import EnhancedJSONEncoder, coroutine
+from models import Movie
+from state import RedisStorage
 
 logger = logging.getLogger()
 
 class ETL:
-    def __init__(self, conn: _connection, es_loader: ESLoader, storage: RedisStorage):
+    def __init__(self, conn: _connection, storage: RedisStorage):
         self.conn = conn
-        self.cursor = pg_conn.cursor(cursor_factory=RealDictCursor)
-        self.es_loader = es_loader
+        self.cursor = pg_conn.cursor(name='etl', cursor_factory=RealDictCursor)
         self.storage = storage
+        self.es = Elasticsearch(hosts="es")
+        # Размер пакетного запроса
+        self.batch_size = 10
 
     @backoff.on_exception(
         wait_gen=backoff.expo,
         exception=(ElasticsearchException, HTTPError),
         max_tries=10,
     )
+
+    @backoff.on_exception(backoff.expo, BaseException)
     def start(self, target):
         logger.info("started")
         while True:
@@ -92,11 +97,16 @@ class ETL:
 
             state = self.storage.retrieve_state()
             self.cursor.execute(SQL, (state,))
-            data = self.cursor.fetchall()
-            if len(data) == 0:
-                continue
 
-            target.send(data)
+            count = 0
+            while True:
+                data = self.cursor.fetchmany(self.batch_size)
+                if not data:
+                    break
+
+                target.send(data)
+
+
 
     @coroutine
     def transform(self, target: Generator) -> Generator:
@@ -130,9 +140,9 @@ class ETL:
                 )
 
             prepare_data = "\n".join(movies_to_es) + "\n"
-            self.es_loader.load_to_es(records=prepare_data, index_name="movies")
-            for row in transformed:
-                storage.save_state(row.updated_at)
+            logger.info(f"records {prepare_data}")
+            self.es.bulk(body=prepare_data, index="movies")
+            storage.save_state(transformed[0].updated_at)
 
     def __call__(self, *args, **kwargs):
         load = self.load()
@@ -152,8 +162,9 @@ if __name__ == "__main__":
     }
 
     with psycopg2.connect(**dsl) as pg_conn:
-        es_loader = ESLoader()
         redis_adapter = Redis(host="redis")
         storage = RedisStorage(redis_adapter=redis_adapter)
-        etl = ETL(conn=pg_conn, es_loader=es_loader, storage=storage)
+        etl = ETL(conn=pg_conn, storage=storage)
         etl()
+
+    pg_conn.close()
