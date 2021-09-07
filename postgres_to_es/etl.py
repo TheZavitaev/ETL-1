@@ -160,11 +160,13 @@ if __name__ == "__main__":
         "port": os.getenv("POSTGRES_PORT", "5432"),
         "options": "-c search_path=public,postgres",
     }
-
-    with psycopg2.connect(**dsl) as pg_conn:
-        redis_adapter = Redis(host="redis")
-        storage = RedisStorage(redis_adapter=redis_adapter)
-        etl = ETL(conn=pg_conn, storage=storage)
-        etl()
-
-    pg_conn.close()
+    try:
+        with psycopg2.connect(**dsl) as pg_conn:
+            redis_adapter = Redis(host="redis")
+            storage = RedisStorage(redis_adapter=redis_adapter)
+            etl = ETL(conn=pg_conn, storage=storage)
+            etl()
+    except psycopg2.DatabaseError as error:
+        logger.info(f"Database error {error}")
+    finally:
+        pg_conn.close()

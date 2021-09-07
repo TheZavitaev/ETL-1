@@ -12,8 +12,6 @@ RUN set -xe; \
     apt-get upgrade -yqq && \
     apt-get install -yqq netcat
 
-COPY ./entrypoint.sh /etl/entrypoint.sh
-
 # Clean up
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -23,6 +21,5 @@ COPY requirements.txt /etl/
 # install python dependencies
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
-RUN pip install -U drf-yasg
 
-ENTRYPOINT ["bash", "/etl/entrypoint.sh"]
+CMD ["python", "-m", "/etl/etl.py"]
