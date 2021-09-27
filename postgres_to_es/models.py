@@ -6,13 +6,14 @@ import uuid
 
 @dataclasses.dataclass
 class Person:
-    id: uuid
+    id: uuid.UUID
     name: str
+    updated_at: datetime
 
     @classmethod
     def from_dict(cls, dict_: dict[str, typing.Any]) -> "Person":
         if dict_:
-            return cls(id=dict_["id"], name=dict_["name"])
+            return cls(id=dict_["id"], name=dict_["name"], updated_at=dict_["p_updated_at"])
         return None
 
     @classmethod
@@ -24,7 +25,7 @@ class Person:
 
 @dataclasses.dataclass
 class Movie:
-    id: uuid
+    id: uuid.UUID
     title: str
     description: str
     imdb_rating: float
@@ -47,3 +48,21 @@ class Movie:
             director=Person.from_dict_list(dict_["directors"]),
             updated_at=dict_["updated_at"],
         )
+
+@dataclasses.dataclass
+class Genre:
+    id: uuid.UUID
+    name: str
+    updated_at: datetime
+
+    @classmethod
+    def from_dict(cls, dict_: dict[str, typing.Any]) -> "Genre":
+        if dict_:
+            return cls(id=dict_["id"], name=dict_["name"], updated_at=dict_["updated_at"])
+        return None
+
+    @classmethod
+    def from_dict_list(cls, iterable: typing.Iterable[dict]) -> list["Genre"]:
+        if iterable:
+            return [cls.from_dict(it) for it in iterable]
+        return []
